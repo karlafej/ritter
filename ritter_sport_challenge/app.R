@@ -53,6 +53,9 @@ server <- function(input, output) {
         scale_fill_manual(values =c('all'='grey','choice'='firebrick'), labels = c('All', input$choco)) +
         ylab("Percent") +
         xlab("Rank") +
+        scale_y_continuous(labels = scales::percent, 
+                           limits = c(0, 0.75),
+                           breaks = seq(0, 0.75, by = 0.1) ) +
         theme_bw() +
         theme(legend.position = "bottom", 
               legend.title = element_blank(),
