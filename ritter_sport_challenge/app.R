@@ -12,7 +12,6 @@ library(readr)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
-library(plotly)
 
 # read data
 challenge_data <- read_csv('./data/ritter.csv')
@@ -46,11 +45,13 @@ ui <- fluidPage(
             selectInput("who", "Select person:",
                         choices = unique(challenge_melt$person))
      ),
-     column(5,
-            plotOutput("person_barPlot")
-     ),
-     column(5,
-            plotlyOutput("person_chocoPlot")) #table will be better...
+     column(10,
+            tabsetPanel(
+              tabPanel("Plot", plotOutput("person_barPlot")),
+              tabPanel("Table", div(tableOutput("personTable")), 
+                       style = "font-size:80%")
+            )
+     )
    )
 )
 
@@ -105,32 +106,15 @@ server <- function(input, output) {
        ) 
    })
    
-   output$person_chocoPlot <- renderPlotly({ 
-     p <-
+   output$personTable <- renderTable({ 
      challenge_melt %>% 
        group_by(Cokolada) %>% 
        summarise(mean = round(mean(ranking), digits = 2), 
-                 median = median(ranking)) %>% 
+                 median = as.integer(median(ranking))) %>% 
        full_join(., filter(challenge_melt, person ==  input$who)) %>% 
-       select(c("Cokolada", "median", "mean", "ranking")) %>% 
+       select(c("Cokolada", "ranking", "median", "mean")) %>% 
        rename(!!quo_name(input$who) := ranking) %>% 
-       rename(Chocolate = Cokolada) %>% 
-       gather(varname, ranking, -Chocolate) %>% 
-       ggplot(aes(y = Chocolate, x = varname)) +
-       geom_tile(aes(fill = ranking), color = "white") +
-       scale_fill_gradientn(colours = colorRampPalette(c("firebrick", "grey"))(8),
-                            na.value = "white", limits = c(1,8),
-                            breaks = seq(1,8)) +
-       scale_y_discrete(position = "right") +
-       theme_bw() +
-       theme(legend.position = "bottom", 
-             legend.title = element_text(size = 1, colour = "white" ),
-             legend.text = element_text(size = 6),
-             axis.text = element_text(size = 4),
-             axis.text.x = element_text(size = 8),
-             axis.title = element_blank()
-       ) 
-       ggplotly(p, tooltip = c("Chocolate", "ranking"))
+       rename(Chocolate = Cokolada) 
    }) 
 
 }
