@@ -18,6 +18,12 @@ challenge_data <- read_csv('./data/ritter.csv')
 challenge_melt <- gather(challenge_data[,2:13], person, ranking, -Cokolada)
 challenge_melt <- challenge_melt[!is.na(challenge_melt$ranking),]
 challenge_melt$rank <- as.factor(challenge_melt$ranking)
+challenge_summary <-
+  challenge_melt %>% 
+  group_by(Cokolada) %>% 
+  summarise(mean = round(mean(ranking), digits = 2), 
+            median = as.integer(median(ranking))) %>% 
+  rename(Chocolate = Cokolada) 
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -31,10 +37,12 @@ ui <- fluidPage(
             selectInput("choco", "Select Chocolate:", 
                         choices = challenge_data$Cokolada)
       ),
-      
-      # Show a plot 
       column(10, 
-         plotOutput("choco_barPlot")
+             tabsetPanel(
+               tabPanel("Plot", plotOutput("choco_barPlot")),
+               tabPanel("Top 10", tableOutput("top_10")),
+               tabPanel("Bottom 10", tableOutput("bottom_10"))
+             )
       )
    ),
    
@@ -59,7 +67,6 @@ ui <- fluidPage(
 server <- function(input, output) {
    
    output$choco_barPlot <- renderPlot({
-
       # draw plot for the chosen chocolate
       challenge_melt %>% 
         filter(Cokolada ==  input$choco) %>% 
@@ -83,7 +90,6 @@ server <- function(input, output) {
    })
    
    output$person_barPlot <- renderPlot({
-     
      # draw plot for the chosen person
      challenge_melt %>% 
        filter(person ==  input$who) %>% 
@@ -107,16 +113,24 @@ server <- function(input, output) {
    })
    
    output$personTable <- renderTable({ 
-     challenge_melt %>% 
-       group_by(Cokolada) %>% 
-       summarise(mean = round(mean(ranking), digits = 2), 
-                 median = as.integer(median(ranking))) %>% 
-       full_join(., filter(challenge_melt, person ==  input$who)) %>% 
-       select(c("Cokolada", "ranking", "median", "mean")) %>% 
-       rename(!!quo_name(input$who) := ranking) %>% 
-       rename(Chocolate = Cokolada) 
+     challenge_summary %>% 
+       full_join(., filter(challenge_melt, person ==  input$who), 
+                 by = c("Chocolate" = "Cokolada")) %>% 
+       select(c("Chocolate", "ranking", "median", "mean")) %>% 
+       rename(!!quo_name(input$who) := ranking) 
    }) 
-
+   
+   output$top_10 <- renderTable({
+     challenge_summary %>% 
+       top_n(-10, mean) %>% 
+       arrange(mean, median)
+   })
+   
+   output$bottom_10 <- renderTable({
+     challenge_summary %>% 
+       top_n(10, mean) %>% 
+       arrange(desc(mean), desc(median))
+   })
 }
 
 # Run the application 
